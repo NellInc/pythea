@@ -74,10 +74,28 @@ def _to_bits(nats: float) -> float:
 
 
 def _normalize_spans(spans: List[Dict[str, str]]) -> List[Span]:
+    """Normalize caller-provided span dicts into Span objects.
+
+    Accepts multiple formats:
+      - {"sid": "S0", "text": "..."} — canonical
+      - {"text": "..."}             — auto-generates sid as S{index}
+      - {"sid": "S0", "label": "..."}  — falls back to alternative text keys
+      - {"sid": "S0", "content": "..."} — same fallback
+    """
     out: List[Span] = []
-    for s in spans or []:
+    for i, s in enumerate(spans or []):
         sid = str(s.get("sid", "")).strip()
         text = str(s.get("text", "")).strip()
+        # Auto-generate sid when text is present but sid is missing
+        if not sid and text:
+            sid = f"S{i}"
+        # Fall back to alternative text keys when "text" key is absent
+        if not text:
+            for alt_key in ("label", "content", "source", "body"):
+                candidate = str(s.get(alt_key, "")).strip()
+                if candidate:
+                    text = candidate
+                    break
         if sid and text:
             out.append(Span(sid=sid, text=text))
     return out
